@@ -36,21 +36,30 @@ function confSet(text, key, value) {
 }
 
 function css() {
+	// Themes only indent a section's own first heading; every other child of
+	// .cbi-section is flush against the card edge (Argon sets padding:0 on it).
+	// .kd-body supplies the gutter the theme does not, and matches the 1.25rem
+	// the heading already uses so the two line up.
 	return '' +
-	'.kd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:12px 0}' +
+	'.kd-body{padding:0 1.25rem 1.25rem;box-sizing:border-box}' +
+	'.kd-body>*:last-child{margin-bottom:0}' +
+	'.kd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:0}' +
 	'.kd-prev{text-align:center;font-size:12px;opacity:.75}' +
 	'.kd-prev img{width:100%;max-width:250px;border:1px solid rgba(128,128,128,.4);background:#fff;display:block;margin:0 auto 6px}' +
-	'.kd-hint{font-size:12px;opacity:.7;margin:4px 0 10px;line-height:1.7}' +
-	'.kd-out{white-space:pre-wrap;font-family:monospace;font-size:12px;margin-top:10px}' +
-	'.kd-f{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end}' +
+	'.kd-hint{font-size:12px;opacity:.7;margin:0 0 10px;line-height:1.7}' +
+	'.kd-out:not(:empty){white-space:pre-wrap;font-family:monospace;font-size:12px;margin:0 0 1.25rem;padding:0 1.25rem}' +
+	'.kd-f{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;margin-bottom:10px}' +
 	'.kd-f label{display:block;font-size:12px;opacity:.75;margin-bottom:4px}' +
-	'.kd-calc{font-size:12px;opacity:.85;margin-top:8px}';
+	'.kd-f>div{max-width:100%}' +
+	'.kd-calc{font-size:12px;opacity:.85;margin-top:8px}' +
+	'.kd-in{box-sizing:border-box;max-width:100%}' +
+	'.kd-area{box-sizing:border-box;width:100%;max-width:100%;display:block}';
 }
 
 function input(value, width) {
 	return E('input', {
 		'type': 'text',
-		'class': 'cbi-input-text',
+		'class': 'cbi-input-text kd-in',
 		'value': value,
 		'spellcheck': 'false',
 		'style': 'width:' + (width || '160px') + ';font-family:monospace'
@@ -59,11 +68,19 @@ function input(value, width) {
 
 function area(value, rows) {
 	return E('textarea', {
-		'class': 'cbi-input-textarea',
+		'class': 'cbi-input-textarea kd-area',
 		'rows': rows,
 		'spellcheck': 'false',
-		'style': 'width:100%;font-family:monospace'
+		'style': 'font-family:monospace'
 	}, [ value ]);
+}
+
+// One card: a heading the theme indents itself, plus a padded body for the rest.
+function section(title, children) {
+	return E('div', { 'class': 'cbi-section' }, [
+		E('h3', {}, title),
+		E('div', { 'class': 'kd-body' }, children)
+	]);
 }
 
 function previews(serveDir, total) {
@@ -169,14 +186,13 @@ return view.extend({
 				});
 		}
 
-		return E([], [
+		return E('div', { 'class': 'cbi-map' }, [
 			E('style', {}, css()),
 			E('h2', {}, _('Kindle 看板')),
 			E('div', { 'class': 'cbi-map-descr' },
 				_('Kindle 每次唤醒时从本机取配置和图，所以这里改完不需要插 USB，下次唤醒即生效。')),
 
-			E('div', { 'class': 'cbi-section' }, [
-				E('h3', {}, _('轮播与刷新')),
+			section(_('轮播与刷新'), [
 				E('div', { 'class': 'kd-f' }, [
 					E('div', {}, [ E('label', {}, _('页面顺序')), seqIn ]),
 					E('div', {}, [ E('label', {}, _('唤醒时刻（每小时第几分钟）')), wakeIn ])
@@ -189,8 +205,7 @@ return view.extend({
 				calc
 			]),
 
-			E('div', { 'class': 'cbi-section' }, [
-				E('h3', {}, _('备忘内容')),
+			section(_('备忘内容'), [
 				E('div', { 'class': 'kd-hint' }, [
 					_('每行一条。以 # 开头的行作为页面标题；行首的 - 或 * 会被去掉；'),
 					E('br'),
@@ -199,8 +214,7 @@ return view.extend({
 				notesArea
 			]),
 
-			E('div', { 'class': 'cbi-section' }, [
-				E('h3', {}, _('系统状态页要探测的服务')),
+			section(_('系统状态页要探测的服务'), [
 				E('div', { 'class': 'kd-hint' }, [
 					_('每行一条，推荐用竖线分隔：名称 | https://example.com/'),
 					E('br'),
@@ -211,8 +225,7 @@ return view.extend({
 				watchArea
 			]),
 
-			E('div', { 'class': 'cbi-section' }, [
-				E('h3', {}, _('页面组成')),
+			section(_('页面组成'), [
 				E('div', { 'class': 'kd-hint' }, [
 					_('格式为「页号:生成器」，页号必须从 1 开始连续。生成器是 /root/kindle-dash/ 下的 Python 文件，'),
 					E('br'),
@@ -235,8 +248,7 @@ return view.extend({
 
 			output,
 
-			E('div', { 'class': 'cbi-section' }, [
-				E('h3', {}, _('当前页面')),
+			section(_('当前页面'), [
 				E('div', { 'class': 'kd-hint' },
 					_('最后构建：') + (String(builtAt).trim() || _('未知'))),
 				previewBox
