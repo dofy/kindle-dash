@@ -10,6 +10,7 @@ var NOTES = '/root/kindle-dash/notes.txt';
 var WATCH = '/root/kindle-dash/watch.txt';
 var SERVE = '/root/kindle-dash/serve-dir';
 var BUILT = '/root/kindle-dash/last-build';
+var PAGES = '/root/kindle-dash/pages';
 var BUILD = '/root/kindle-dash/build.sh';
 
 function readOr(path, fallback) {
@@ -109,13 +110,14 @@ return view.extend({
 			readOr(NOTES, '# 备忘\n'),
 			readOr(WATCH, ''),
 			readOr(SERVE, ''),
-			readOr(BUILT, '')
+			readOr(BUILT, ''),
+			readOr(PAGES, '')
 		]);
 	},
 
 	render: function (data) {
 		var conf = data[0], notes = data[1], watch = data[2];
-		var serveDir = data[3], builtAt = data[4];
+		var serveDir = data[3], builtAt = data[4], builtPages = data[5];
 
 		var seqIn   = input(confGet(conf, 'SEQ', '1 2 3'), '220px');
 		var wakeIn  = input(confGet(conf, 'WAKE_MINUTES', '9 24 39 54'), '260px');
@@ -124,6 +126,22 @@ return view.extend({
 		var watchArea = area(watch, 5);
 
 		var calc = E('div', { 'class': 'kd-calc' });
+		var sched = E('div', { 'class': 'kd-hint' });
+
+		// build.sh rewrites the cron schedule to two minutes before every wake,
+		// so the build times are not a constant that can be written into the
+		// hint: they follow whatever is typed above.
+		function buildTimes(wakes) {
+			var seen = {}, out = [];
+			wakes.forEach(function (w) {
+				var m = (parseInt(w, 10) + 58) % 60;
+				if (!seen[m]) { seen[m] = true; out.push(m); }
+			});
+			return out.sort(function (a, b) { return a - b; }).map(function (m) {
+				return ':' + (m < 10 ? '0' : '') + m;
+			});
+		}
+
 		function recalc() {
 			var wakes = wakeIn.value.trim().split(/\s+/).filter(function (t) { return /^\d+$/.test(t); });
 			var seq = seqIn.value.trim().split(/\s+/).filter(function (t) { return /^\d+$/.test(t); });
@@ -141,13 +159,18 @@ return view.extend({
 			}
 			if (perHour > 4) txt += _('  —— 比默认更频繁，会更耗电');
 			calc.textContent = txt;
+
+			sched.textContent = wakes.length
+				? _('保存并重建会把服务端的构建时刻改成 ') + buildTimes(wakes).join(' ') +
+				  _('，也就是每次唤醒前两分钟，所以图总是新的。')
+				: _('唤醒时刻为空时设备按固定间隔 INTERVAL 醒，相位会和服务端构建错开。');
 		}
 		seqIn.addEventListener('input', recalc);
 		wakeIn.addEventListener('input', recalc);
 		recalc();
 
 		var output = E('div', { 'class': 'kd-out' });
-		var previewBox = E('div', {}, previews(serveDir, confGet(conf, 'PAGE_SPECS', '1 2 3').split(/\s+/).length));
+		var previewBox = E('div', {}, previews(serveDir, builtPages));
 
 		function save(thenBuild) {
 			output.textContent = '';
@@ -174,10 +197,11 @@ return view.extend({
 						} else {
 							ui.addNotification(null, E('p', _('已重建。设备下次唤醒生效。')), 'info');
 						}
-						return readOr(SERVE, '').then(function (sd) {
-							previewBox.innerHTML = '';
-							previewBox.appendChild(previews(sd, specIn.value.trim().split(/\s+/).length));
-						});
+						return Promise.all([ readOr(SERVE, ''), readOr(PAGES, '') ])
+							.then(function (r) {
+								previewBox.innerHTML = '';
+								previewBox.appendChild(previews(r[0], r[1]));
+							});
 					});
 				})
 				.catch(function (err) {
@@ -197,11 +221,9 @@ return view.extend({
 					E('div', {}, [ E('label', {}, _('页面顺序')), seqIn ]),
 					E('div', {}, [ E('label', {}, _('唤醒时刻（每小时第几分钟）')), wakeIn ])
 				]),
-				E('div', { 'class': 'kd-hint' }, [
-					_('顺序里重复某一页就等于加权，例如 1 2 1 3 让第 1 页出现的频率是其他页的两倍。'),
-					E('br'),
-					_('唤醒时刻条目越多刷新越频繁。服务端在 :07 :22 :37 :52 构建，默认晚两分钟醒。')
-				]),
+				E('div', { 'class': 'kd-hint' },
+					_('顺序里重复某一页就等于加权，例如 1 2 1 3 让第 1 页出现的频率是其他页的两倍。')),
+				sched,
 				calc
 			]),
 

@@ -8,6 +8,7 @@
 				"/root/kindle-dash/watch.txt": [ "read" ],
 				"/root/kindle-dash/serve-dir": [ "read" ],
 				"/root/kindle-dash/last-build": [ "read" ],
+				"/root/kindle-dash/pages": [ "read" ],
 				"/root/kindle-dash/build.sh": [ "exec" ]
 			}
 		},

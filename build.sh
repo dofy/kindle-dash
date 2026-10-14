@@ -173,6 +173,7 @@ date '+%Y-%m-%d %H:%M:%S %z' > "$SERVE_DIR/built-at"
 # instead of a glob that would also cover the credentials in ./env.
 echo "$SERVE_DIR" > /root/kindle-dash/serve-dir
 cp -f "$SERVE_DIR/built-at" /root/kindle-dash/last-build
+cp -f "$SERVE_DIR/pages" /root/kindle-dash/pages
 
 # Page 1 stays available under the old name, so an un-updated device keeps working.
 cp -f "$SERVE_DIR/page-1.png" "$SERVE_DIR/dash.png"
