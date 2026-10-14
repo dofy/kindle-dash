@@ -24,19 +24,66 @@ conf_get() {
 
 PAGE_SPECS=$(conf_get PAGE_SPECS)
 [ -n "$PAGE_SPECS" ] || PAGE_SPECS="1:fetch.py 2:status.py 3:notes.py"
-TOTAL=$(echo "$PAGE_SPECS" | wc -w | tr -d ' ')
 
-for spec in $PAGE_SPECS; do
+# PAGE_SPECS is editable from LuCI and its generator names are handed to
+# python3 as root, so only a bare *.py file inside this directory is accepted.
+#
+# The accepted page numbers also have to start at 1 with no gap: TOTAL is
+# published to the device and stamped into every footer, and a gap would make
+# it count pages that were never rendered.
+PAGES=$(python3 - "$PAGE_SPECS" <<'PY'
+import os
+import re
+import sys
+
+NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.py$")
+
+claimed = set()
+accepted = {}
+for spec in sys.argv[1].split():
+    num, sep, gen = spec.partition(":")
+    if not sep or not num.isdigit() or int(num) < 1:
+        print(f"spec {spec!r}: expected 页号:生成器 with a page number from 1, skipped",
+              file=sys.stderr)
+        continue
+    n = int(num)
+    if n in claimed:
+        print(f"page {n}: declared more than once, {gen!r} ignored", file=sys.stderr)
+        continue
+    claimed.add(n)
+    if not NAME.match(gen):
+        print(f"page {n}: {gen!r} is not a plain .py file name, skipped", file=sys.stderr)
+        continue
+    if not os.path.isfile(gen):
+        print(f"page {n}: {gen} missing, skipped", file=sys.stderr)
+        continue
+    accepted[n] = gen
+
+for n in range(1, max(accepted, default=0) + 1):
+    if n not in accepted:
+        dropped = sorted(x for x in accepted if x > n)
+        if dropped:
+            print(f"page {n} is unusable, so {dropped} are dropped as well: "
+                  f"pages have to be contiguous from 1", file=sys.stderr)
+        break
+    print(f"{n}:{accepted[n]}")
+PY
+)
+# grep exits 1 on no match, and set -e would take the script down before
+# the check below gets to say why.
+TOTAL=$(echo "$PAGES" | grep -c . || true)
+if [ "$TOTAL" -eq 0 ]; then
+    echo "PAGE_SPECS has no usable page; the published dashboard is left alone" >&2
+    exit 1
+fi
+
+for spec in $PAGES; do
     n=${spec%%:*}
     gen=${spec#*:}
     tmp_json="$SERVE_DIR/.page-$n.json.tmp"
     tmp_png="$SERVE_DIR/.page-$n.png.tmp"
 
-    if [ ! -f "$gen" ]; then
-        echo "page $n: $gen missing, skipped" >&2
-        continue
-    fi
-    if ! python3 "$gen" "$tmp_json"; then
+    if ! python3 "./$gen" "$tmp_json"; then
         echo "page $n: $gen failed, keeping the previous image" >&2
         rm -f "$tmp_json"
         continue
@@ -105,6 +152,19 @@ with open(out_path, "w", encoding="utf-8") as f:
     f.write(f"TOTAL={total}\n")
 PY
 mv -f "$SERVE_DIR/.config.tmp" "$SERVE_DIR/config"
+
+# A shrunk PAGE_SPECS leaves behind the images of the pages it dropped, and
+# both the device and the LuCI preview would go on showing them.
+for stale in "$SERVE_DIR"/page-*.png "$SERVE_DIR"/page-*.json; do
+    [ -e "$stale" ] || continue
+    base=${stale##*/}
+    num=${base#page-}
+    num=${num%.*}
+    case "$num" in
+        ''|*[!0-9]*) continue ;;
+    esac
+    [ "$num" -le "$TOTAL" ] || rm -f "$stale"
+done
 
 echo "$TOTAL" > "$SERVE_DIR/pages"
 date '+%Y-%m-%d %H:%M:%S %z' > "$SERVE_DIR/built-at"
