@@ -5,7 +5,8 @@
 # Check what the refresh loop can rely on: the server fetch, and whether the
 # device can suspend to RAM on an RTC alarm instead of just sleeping.
 LOG=/mnt/us/netprobe.log
-URL=http://192.168.2.1/kindle/802deafa09e8/dash.png
+# Same address the refresh loop uses; see /mnt/us/dash-site.
+URL="$(head -1 /mnt/us/dash-site 2>/dev/null | tr -d ' \t\r\n')/dash.png"
 {
     echo "=== netprobe at $(date)"
     echo "--- network"

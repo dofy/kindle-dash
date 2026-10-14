@@ -62,6 +62,17 @@ scp nano/luci/acl.d/*.json         root@router:/usr/share/rpcd/acl.d/
 ssh root@router '/etc/init.d/rpcd restart'   # only after an ACL change
 ```
 
+The device needs to be told where to fetch from, once, over USB:
+
+```bash
+echo http://<router>/kindle/<device-mac> > /mnt/us/dash-site
+```
+
+`dash.conf` on the device is replaced from the server every cycle, so the
+address cannot live there, and it is kept out of the repository so the MAC and
+the network layout are not published with it. Without the file the refresh loop
+exits and says so in `/mnt/us/dash-loop.log`.
+
 The router needs `python3`, `python3-pillow`, and a CJK font pair at
 `/root/kindle-dash/fonts/NotoSansSC-{Regular,Bold}.otf`; those files are not in
 the repo because they are 16 MB of binary. `env` has to be written by hand at

@@ -36,7 +36,11 @@ LOCK=/mnt/us/dash-loop.pid
 # it is no use here.
 POWER_DEV=${POWER_DEV:-/dev/input/event0}
 CFG=/mnt/us/dash.conf
-URL_BASE=http://192.168.2.1/kindle/802deafa09e8
+# Where to fetch from. CFG itself is overwritten from the server every cycle,
+# so the address cannot live there, and keeping it in this file would publish
+# the device's MAC and the home network layout. One line, written once, by hand:
+#   echo http://<router>/kindle/<device-mac> > /mnt/us/dash-site
+SITE=/mnt/us/dash-site
 FBINK=/var/local/kmc/bin/fbink
 RTC=/sys/class/rtc/rtc1/wakealarm
 
@@ -53,6 +57,13 @@ INTERVAL=900
 log() {
     echo "$(date '+%m-%d %H:%M:%S') $*" >> "$LOG"
 }
+
+URL_BASE=$(head -1 "$SITE" 2>/dev/null | tr -d ' \t\r\n')
+if [ -z "$URL_BASE" ]; then
+    log "no dashboard address in $SITE; write the base URL into it, for example"
+    log "  echo http://<router>/kindle/<device-mac> > $SITE"
+    exit 1
+fi
 
 is_uint() {
     case "$1" in
