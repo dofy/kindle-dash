@@ -1,0 +1,22 @@
+{
+	"luci-app-kindle-dash": {
+		"description": "Grant access to the Kindle dashboard config, notes, watch list and rebuild",
+		"read": {
+			"file": {
+				"/root/kindle-dash/dash.conf": [ "read" ],
+				"/root/kindle-dash/notes.txt": [ "read" ],
+				"/root/kindle-dash/watch.txt": [ "read" ],
+				"/root/kindle-dash/serve-dir": [ "read" ],
+				"/root/kindle-dash/last-build": [ "read" ],
+				"/root/kindle-dash/build.sh": [ "exec" ]
+			}
+		},
+		"write": {
+			"file": {
+				"/root/kindle-dash/dash.conf": [ "read", "write" ],
+				"/root/kindle-dash/notes.txt": [ "read", "write" ],
+				"/root/kindle-dash/watch.txt": [ "read", "write" ]
+			}
+		}
+	}
+}

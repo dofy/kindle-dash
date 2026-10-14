@@ -1,0 +1,10 @@
+{
+	"admin/services/kindle-dash": {
+		"title": "Kindle 看板",
+		"order": 56,
+		"action": {
+			"type": "view",
+			"path": "kindle-dash/dash"
+		}
+	}
+}

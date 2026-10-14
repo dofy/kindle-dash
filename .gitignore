@@ -1,0 +1,17 @@
+# Runtime state, not source.
+dash.conf
+env
+.serve-token
+notes.txt
+watch.txt
+serve-dir
+last-build
+
+# Render output and scratch.
+out/
+*.bak
+
+# macOS / Python noise.
+.DS_Store
+__pycache__/
+*.pyc

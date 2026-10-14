@@ -1,0 +1,20 @@
+{
+  "updated": "09:42",
+  "date": "10月14日 周三",
+  "weather": {
+    "now": { "temp": 18, "cond": "多云转晴", "icon": "partly" },
+    "high": 24,
+    "low": 12,
+    "hourly": [
+      { "h": "12时", "t": 21, "icon": "sun" },
+      { "h": "15时", "t": 23, "icon": "sun" },
+      { "h": "18时", "t": 19, "icon": "partly" },
+      { "h": "21时", "t": 14, "icon": "cloud" }
+    ]
+  },
+  "agenda": [
+    { "time": "09:30", "title": "团队站会" },
+    { "time": "14:00", "title": "books D1 迁移联调" }
+  ],
+  "status": ["电量 87%", "磁盘 72%", "未读邮件 3"]
+}
