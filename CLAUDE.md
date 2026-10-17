@@ -3,22 +3,6 @@
 Working notes for this repository. `README.md` documents the project; this file
 records the state of the deployment and the traps that cost time to rediscover.
 
-## Pending
-
-**Before the next deploy of `device/dash-loop-worker.sh` to the Kindle, create
-`/mnt/us/dash-site` on the device, over USB:**
-
-```bash
-echo http://<router>/kindle/<device-mac> > /mnt/us/dash-site
-```
-
-The address used to be hardcoded in the script and was removed when the
-repository was made public. The Kindle currently runs its own older copy and
-keeps working, so nothing is broken right now — but the new script exits
-immediately without that file and writes the reason to
-`/mnt/us/dash-loop.log`. The MAC is the directory name under `/www/kindle/` on
-the router, also in `.serve-token` (untracked).
-
 ## Where it runs
 
 - Router (`Nano` / `Nano-tunnel`, OpenWrt): generators and `build.sh` in
@@ -28,7 +12,26 @@ the router, also in `.serve-token` (untracked).
 - `7-mm`: development clone at `~/Works/Seven/kindle-dash`. The pre-git tree is
   parked next to it at `kindle-dash.pre-git` and can be deleted once nothing is
   missing from it.
-- Kindle: `device/`, installed under `/mnt/us`.
+- Kindle: `device/`, installed under `/mnt/us`, including the one-line
+  `dash-site` that tells the loop where to fetch from.
+
+## How the Kindle reaches it
+
+The images are served by a second uhttpd instance on port 8081 with
+`home=/www/kindle`, declared as `uhttpd.kindle`. It carries no `cgi_prefix` and
+no `lua_prefix`, so it can only hand out files. The LuCI instance on port 80 is
+deliberately left alone: opening that port to anything would publish the whole
+admin interface along with the dashboard.
+
+The router's own AP is 5 GHz, and the Kindle has no 5 GHz radio, so it sits on
+the upstream router instead and arrives on the router's WAN side. The WAN zone
+rejects input by default, so two narrow rules allow tcp/8081 from the two
+upstream subnets and nothing else. Their packet counters are the quickest way
+to tell whether a fetch is even reaching the router:
+
+```bash
+ssh Nano-tunnel 'nft -a list chain inet fw4 input_wan | grep kindle-dash'
+```
 
 Untracked on purpose: `env` (QWeather credentials, mode 600),
 `/root/kindle-dash/fonts/NotoSansSC-{Regular,Bold}.otf` (16 MB), and the
@@ -58,6 +61,29 @@ runtime files LuCI writes.
 - **The ACL names fixed paths.** Anything the view reads has to be copied to a
   stable path under `/root/kindle-dash/`, the way `build.sh` publishes
   `last-build` and `pages`, rather than reached through `serve-dir`.
+- **Never reload the firewall on this router.** OpenClash inserts its rules
+  into `inet fw4` at runtime, and `/etc/init.d/firewall reload` flushes the
+  table and takes them with it. Add rules with `nft insert` for immediate
+  effect and write the matching `uci` rule for persistence, without reloading.
+- **An `nft` comment cannot contain a space.** The command line is re-parsed,
+  so a comment of two words dies with a syntax error pointing at the second
+  one. Use a single token; the rules here are `kindle-dash-0` and
+  `kindle-dash-1`.
+- **The worker hot-reloads, the device does not need rebooting.** It compares
+  its own checksum each cycle and re-executes when the file changes, so
+  deploying a new one is: plug in, copy, unplug, wait one cycle. This matters
+  because with the framework stopped the power button shows no restart menu —
+  that menu is drawn by the framework — and the only way out is holding power
+  for about twenty seconds.
+- **USB and the loop are mutually exclusive.** In USB drive mode `/mnt/us` is
+  detached on the device side, so the loop can neither fetch nor log, and its
+  log appears to stop mid-sentence. Attaching USB also keeps the device from
+  suspending. Anything timing-related has to be tested with the cable out.
+- **Do not infer a failed suspend from a short sleep.** Pressing the power
+  button right after the device suspends produces one too; an early version
+  treated that as a failure and silently ate every press made within the first
+  ten seconds. The exit status of the write to `/sys/power/state` is the actual
+  signal.
 
 ## Checks worth running after a change
 
