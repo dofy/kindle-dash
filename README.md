@@ -100,6 +100,23 @@ absent. Sections are skipped when their data is absent, so the same layout code
 handles "weather only" and "weather plus everything else". Rows past the
 available height collapse into a "还有 N 项" line.
 
+A `rows` entry is one of three shapes: `{"h": "..."}` is a heading inside the
+list, `{"box": true, "done": false}` draws a checkbox and strikes the text
+through once done, and anything else is a plain `{"l": "...", "r": "..."}` pair.
+
+`notes.txt`, which feeds the notes page, is written in that order:
+
+```
+# 待办                   the first '#' line is the page title
+- [ ] 未完成              an unticked checkbox
+- [x] 已完成 | 11-20      ticked: struck through and dimmed, '|' adds a right column
+## 以后再说               any later '#' line is a heading inside the page
+普通一行                  no checkbox, just a row
+```
+
+The footer counts the checkboxes, falling back to a plain item count when the
+page has none.
+
 ## Design constraints
 
 - No frontlight, so the panel is unreadable in the dark.

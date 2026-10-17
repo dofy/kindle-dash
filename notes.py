@@ -3,10 +3,12 @@
 
 The file is meant to be edited directly, so the format is deliberately loose:
 
-    # 备忘            <- the first '#' line becomes the page title
-    - 买咖啡豆         <- '-' and '*' bullets are stripped
-    续签域名 | 11-20   <- '|' splits a row into left and right
-    ## 本周            <- any later '#' line becomes a heading inside the page
+    # 备忘              <- the first '#' line becomes the page title
+    - [ ] 买咖啡豆       <- an unticked checkbox
+    - [x] 续签域名       <- ticked: the row is struck through and dimmed
+    - 买咖啡豆           <- plain bullet, no checkbox
+    续签域名 | 11-20     <- '|' splits a row into left and right
+    ## 本周              <- any later '#' line becomes a heading inside the page
     空行被忽略
 
 Everything else is taken verbatim as a left-aligned row.
@@ -16,12 +18,22 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
 
 WEEKDAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 SRC = Path(os.environ.get("DASH_NOTES", "/root/kindle-dash/notes.txt"))
+
+
+def _status(rows) -> list:
+    items = [r for r in rows if "h" not in r]
+    tasks = [r for r in items if r.get("box")]
+    if not tasks:
+        return [f"{len(items)} 条"]
+    done = sum(1 for r in tasks if r.get("done"))
+    return [f"{done} / {len(tasks)} 完成"]
 
 
 def build() -> dict:
@@ -46,8 +58,21 @@ def build() -> dict:
                     rows.append({"h": heading})
                 continue
             line = line.lstrip("-*").strip()
+
+            # Markdown task syntax. Anything else stays a plain row, so the page
+            # can mix a checklist with ordinary notes.
+            box = None
+            m = re.match(r"^\[([ xX])\]\s*(.*)$", line)
+            if m:
+                box = m.group(1).lower() == "x"
+                line = m.group(2).strip()
+
             left, sep, right = line.partition("|")
-            rows.append({"l": left.strip(), "r": right.strip() if sep else ""})
+            row = {"l": left.strip(), "r": right.strip() if sep else ""}
+            if box is not None:
+                row["box"] = True
+                row["done"] = box
+            rows.append(row)
     else:
         rows.append({"l": f"{SRC} 不存在", "r": ""})
 
@@ -56,7 +81,7 @@ def build() -> dict:
         "updated": now.strftime("%H:%M"),
         "title": title,
         "rows": rows,
-        "status": [f"{sum(1 for r in rows if 'h' not in r)} 条"],
+        "status": _status(rows),
     }
 
 

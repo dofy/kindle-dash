@@ -275,6 +275,19 @@ def draw_title(d, text, y):
     return y + 58
 
 
+def checkbox(d, x, cy, size, ticked):
+    """A square, with a tick when done. Drawn from primitives because the font
+    may not carry box glyphs and because E-Ink needs a heavier stroke than one."""
+    half = size / 2
+    box = [x, cy - half, x + size, cy + half]
+    d.rectangle(box, outline=BLACK, width=3)
+    if ticked:
+        d.line([x + size * 0.22, cy + size * 0.02,
+                x + size * 0.42, cy + size * 0.26], fill=BLACK, width=4)
+        d.line([x + size * 0.42, cy + size * 0.26,
+                x + size * 0.80, cy - size * 0.28], fill=BLACK, width=4)
+
+
 def draw_rows(d, rows, y, floor=None):
     """Full-width label/value rows. Used by the status and notes pages."""
     rows = rows or []
@@ -300,11 +313,27 @@ def draw_rows(d, rows, y, floor=None):
             continue
         left = str(it.get("l", ""))
         rightside = str(it.get("r", ""))
+        done = bool(it.get("done"))
+        ink = DIM if done else BLACK
+
+        tx = x0
+        if it.get("box"):
+            checkbox(d, x0, cy, 24, done)
+            tx = x0 + 40
+
+        f = font(25)
         rw = d.textlength(rightside, font=font(25, bold=True)) if rightside else 0
-        d.text((x0, cy), fit(d, left, font(25), right - x0 - rw - 20),
-               font=font(25), fill=BLACK, anchor="lm")
+        shown = fit(d, left, f, right - tx - rw - 20)
+        d.text((tx, cy), shown, font=f, fill=ink, anchor="lm")
+        if done:
+            # Strike the text itself, not the whole row: the rule is easier to
+            # read against the row divider when it stops where the words do.
+            w = d.textlength(shown, font=f)
+            d.line([tx, cy + 1, tx + w, cy + 1], fill=ink, width=2)
         if rightside:
-            d.text((right, cy), rightside, font=font(25, bold=True), fill=BLACK, anchor="rm")
+            d.text((right, cy), rightside, font=font(25, bold=True), fill=ink, anchor="rm")
+            if done:
+                d.line([right - rw, cy + 1, right, cy + 1], fill=ink, width=2)
         y += row_h
         d.line([x0, y - 3, right, y - 3], fill=HAIRLINE, width=1)
     if len(rows) > room:

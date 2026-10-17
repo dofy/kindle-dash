@@ -1,20 +1,81 @@
 {
-  "updated": "09:42",
-  "date": "10月14日 周三",
-  "weather": {
-    "now": { "temp": 18, "cond": "多云转晴", "icon": "partly" },
-    "high": 24,
-    "low": 12,
-    "hourly": [
-      { "h": "12时", "t": 21, "icon": "sun" },
-      { "h": "15时", "t": 23, "icon": "sun" },
-      { "h": "18时", "t": 19, "icon": "partly" },
-      { "h": "21时", "t": 14, "icon": "cloud" }
-    ]
+ "date": "10月14日 周三",
+ "updated": "09:42",
+ "weather": {
+  "now": {
+   "temp": 18,
+   "cond": "多云转晴",
+   "icon": "partly"
   },
-  "agenda": [
-    { "time": "09:30", "title": "团队站会" },
-    { "time": "14:00", "title": "books D1 迁移联调" }
-  ],
-  "status": ["电量 87%", "磁盘 72%", "未读邮件 3"]
+  "high": 24,
+  "low": 12,
+  "hourly": [
+   {
+    "h": "12时",
+    "t": 21,
+    "icon": "sun"
+   },
+   {
+    "h": "15时",
+    "t": 23,
+    "icon": "sun"
+   },
+   {
+    "h": "18时",
+    "t": 19,
+    "icon": "partly"
+   },
+   {
+    "h": "21时",
+    "t": 14,
+    "icon": "cloud"
+   }
+  ]
+ },
+ "title": "小标题",
+ "rows": [
+  {
+   "l": "普通一行",
+   "r": "右列"
+  },
+  {
+   "h": "页内小标题"
+  },
+  {
+   "l": "未完成的待办",
+   "box": true,
+   "done": false
+  },
+  {
+   "l": "已完成的待办",
+   "r": "11-20",
+   "box": true,
+   "done": true
+  }
+ ],
+ "agenda": [
+  {
+   "time": "09:30",
+   "title": "团队站会"
+  },
+  {
+   "time": "14:00",
+   "title": "books D1 迁移联调"
+  }
+ ],
+ "cards": [
+  {
+   "label": "卡片标签",
+   "value": "卡片值"
+  },
+  {
+   "label": "湿度",
+   "value": "61%"
+  }
+ ],
+ "status": [
+  "电量 87%",
+  "磁盘 72%",
+  "未读邮件 3"
+ ]
 }
