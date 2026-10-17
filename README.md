@@ -62,10 +62,28 @@ scp nano/luci/acl.d/*.json         root@router:/usr/share/rpcd/acl.d/
 ssh root@router '/etc/init.d/rpcd restart'   # only after an ACL change
 ```
 
+The images are published to `/srv/kindle/<device-mac>/` and served by a second
+uhttpd instance, `uhttpd.kindle`, on port 8081 with `home=/srv/kindle`. That
+directory is deliberately outside every document root: anything under `/www` is
+also served by the LuCI instance on port 80, and on a router with a tunnel in
+front of it that makes the dashboard public.
+
+```bash
+uci set uhttpd.kindle=uhttpd
+uci add_list uhttpd.kindle.listen_http='0.0.0.0:8081'
+uci set uhttpd.kindle.home='/srv/kindle'
+uci set uhttpd.kindle.no_dirlists='1'
+uci commit uhttpd && /etc/init.d/uhttpd restart
+```
+
+No `cgi_prefix` and no `lua_prefix`, so the instance can only hand out files.
+If the device reaches the router from outside its LAN, the WAN zone needs a
+rule admitting tcp/8081 from that subnet and nothing else.
+
 The device needs to be told where to fetch from, once, over USB:
 
 ```bash
-echo http://<router>/kindle/<device-mac> > /mnt/us/dash-site
+echo http://<router>:8081/<device-mac> > /mnt/us/dash-site
 ```
 
 `dash.conf` on the device is replaced from the server every cycle, so the

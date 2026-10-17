@@ -104,6 +104,12 @@ PY
     mv -f "$tmp_png" "$SERVE_DIR/page-$n.png"
     mv -f "$tmp_json" "$SERVE_DIR/page-$n.json"
     chmod 644 "$SERVE_DIR/page-$n.png" "$SERVE_DIR/page-$n.json"
+
+    # A copy at a fixed path, for the LuCI preview to read. SERVE_DIR sits
+    # outside any document root so the browser cannot fetch it, and the ACL has
+    # to name paths it can glob within one directory.
+    cp -f "$SERVE_DIR/page-$n.png" "/root/kindle-dash/preview-$n.png"
+    chmod 644 "/root/kindle-dash/preview-$n.png"
 done
 
 # Normalise the config before publishing it: the device only validates, it does

@@ -8,10 +8,11 @@
 var CONF  = '/root/kindle-dash/dash.conf';
 var NOTES = '/root/kindle-dash/notes.txt';
 var WATCH = '/root/kindle-dash/watch.txt';
-var SERVE = '/root/kindle-dash/serve-dir';
 var BUILT = '/root/kindle-dash/last-build';
 var PAGES = '/root/kindle-dash/pages';
 var BUILD = '/root/kindle-dash/build.sh';
+// build.sh copies each rendered page here for the preview to read.
+var PREVIEW = '/root/kindle-dash/preview-';
 
 function readOr(path, fallback) {
 	return fs.read(path).then(function (s) {
@@ -84,19 +85,35 @@ function section(title, children) {
 	]);
 }
 
-function previews(serveDir, total) {
-	// serveDir is a filesystem path under /www; the browser sees it without that prefix.
-	var base = String(serveDir || '').trim().replace(/^\/www/, '');
-	if (!base) return E('div', { 'class': 'kd-hint' }, _('尚未构建，先点“保存并重建”。'));
+// The published images live outside any document root, so the browser cannot
+// fetch them by URL. Reading them through LuCI keeps them behind the same
+// session auth as the rest of this page, which is the point: when they sat
+// under /www they were reachable from the public tunnel as well.
+function loadPreview(img, path) {
+	fs.read_direct(path, 'blob').then(function (blob) {
+		if (img.dataset.objurl) URL.revokeObjectURL(img.dataset.objurl);
+		// cgi-download answers with application/octet-stream, and an object URL
+		// inherits that type, so opening one in a new tab downloads the file
+		// instead of showing it. Re-wrap with the real type.
+		var u = URL.createObjectURL(new Blob([ blob ], { type: 'image/png' }));
+		img.dataset.objurl = u;
+		img.src = u;
+	}).catch(function (err) {
+		img.replaceWith(E('div', { 'class': 'kd-hint' },
+			_('读取失败：') + (err && err.message ? err.message : path)));
+	});
+}
 
+function previews(total) {
 	var n = parseInt(total, 10);
 	if (!(n > 0)) n = 3;
 
-	var bust = '?t=' + Date.now();
 	var cards = [];
 	for (var i = 1; i <= n; i++) {
+		var img = E('img', { 'alt': 'page ' + i });
+		loadPreview(img, PREVIEW + i + '.png');
 		cards.push(E('div', { 'class': 'kd-prev' }, [
-			E('img', { 'src': base + '/page-' + i + '.png' + bust, 'alt': 'page ' + i }),
+			img,
 			E('div', {}, _('第 ') + i + _(' 页'))
 		]));
 	}
@@ -109,7 +126,6 @@ return view.extend({
 			readOr(CONF, ''),
 			readOr(NOTES, '# 备忘\n'),
 			readOr(WATCH, ''),
-			readOr(SERVE, ''),
 			readOr(BUILT, ''),
 			readOr(PAGES, '')
 		]);
@@ -117,7 +133,7 @@ return view.extend({
 
 	render: function (data) {
 		var conf = data[0], notes = data[1], watch = data[2];
-		var serveDir = data[3], builtAt = data[4], builtPages = data[5];
+		var builtAt = data[3], builtPages = data[4];
 
 		var seqIn   = input(confGet(conf, 'SEQ', '1 2 3'), '220px');
 		var wakeIn  = input(confGet(conf, 'WAKE_MINUTES', '9 24 39 54'), '260px');
@@ -170,7 +186,7 @@ return view.extend({
 		recalc();
 
 		var output = E('div', { 'class': 'kd-out' });
-		var previewBox = E('div', {}, previews(serveDir, builtPages));
+		var previewBox = E('div', {}, previews(builtPages));
 
 		function save(thenBuild) {
 			output.textContent = '';
@@ -197,11 +213,10 @@ return view.extend({
 						} else {
 							ui.addNotification(null, E('p', _('已重建。设备下次唤醒生效。')), 'info');
 						}
-						return Promise.all([ readOr(SERVE, ''), readOr(PAGES, '') ])
-							.then(function (r) {
-								previewBox.innerHTML = '';
-								previewBox.appendChild(previews(r[0], r[1]));
-							});
+						return readOr(PAGES, '').then(function (n) {
+							previewBox.innerHTML = '';
+							previewBox.appendChild(previews(n));
+						});
 					});
 				})
 				.catch(function (err) {

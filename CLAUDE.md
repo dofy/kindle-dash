@@ -6,7 +6,7 @@ records the state of the deployment and the traps that cost time to rediscover.
 ## Where it runs
 
 - Router (`Nano` / `Nano-tunnel`, OpenWrt): generators and `build.sh` in
-  `/root/kindle-dash/`, images published to `/www/kindle/<device-mac>/`, LuCI
+  `/root/kindle-dash/`, images published to `/srv/kindle/<device-mac>/`, LuCI
   view at `/www/luci-static/resources/view/kindle-dash/dash.js`, menu and ACL
   under `/usr/share/luci/menu.d/` and `/usr/share/rpcd/acl.d/`.
 - `7-mm`: development clone at `~/Works/Seven/kindle-dash`. The pre-git tree is
@@ -18,10 +18,18 @@ records the state of the deployment and the traps that cost time to rediscover.
 ## How the Kindle reaches it
 
 The images are served by a second uhttpd instance on port 8081 with
-`home=/www/kindle`, declared as `uhttpd.kindle`. It carries no `cgi_prefix` and
+`home=/srv/kindle`, declared as `uhttpd.kindle`. It carries no `cgi_prefix` and
 no `lua_prefix`, so it can only hand out files. The LuCI instance on port 80 is
 deliberately left alone: opening that port to anything would publish the whole
 admin interface along with the dashboard.
+
+`/srv` rather than `/www` is the whole point. The pages first went to
+`/www/kindle/`, which is inside the LuCI instance's document root, so the
+Cloudflare tunnel in front of port 80 served them to the public for three days:
+the weather page, the status page with the WAN address and the disk and service
+readings, and the notes page. `/kindle/` even answered with a directory listing,
+so the random directory name hid nothing. Purging the edge cache was part of
+closing it — the origin returned 404 while Cloudflare went on serving `HIT`.
 
 The router's own AP is 5 GHz, and the Kindle has no 5 GHz radio, so it sits on
 the upstream router instead and arrives on the router's WAN side. The WAN zone
@@ -60,7 +68,15 @@ runtime files LuCI writes.
   metadata, so both paths work where they are used.
 - **The ACL names fixed paths.** Anything the view reads has to be copied to a
   stable path under `/root/kindle-dash/`, the way `build.sh` publishes
-  `last-build` and `pages`, rather than reached through `serve-dir`.
+  `last-build`, `pages` and `preview-N.png`, rather than reached through
+  `serve-dir`. The previews are read with `fs.read_direct(path, 'blob')`, which
+  goes through `cgi-io` and so needs `"cgi-io": [ "exec" ]` in the ACL as well.
+- **Nothing the dashboard writes may live under a document root.** See above;
+  it is the one mistake here that had consequences outside the project.
+- **An object URL inherits the blob's MIME type.** `cgi-download` answers with
+  `application/octet-stream`, so a preview opened in its own tab downloads
+  instead of rendering. Re-wrap: `new Blob([blob], { type: 'image/png' })`.
+  The `<img>` itself never cared.
 - **Never reload the firewall on this router.** OpenClash inserts its rules
   into `inet fw4` at runtime, and `/etc/init.d/firewall reload` flushes the
   table and takes them with it. Add rules with `nft insert` for immediate
